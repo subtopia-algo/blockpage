@@ -22,16 +22,9 @@ type Props = {
   readOnly?: boolean
 }
 
-const Category: React.FC<Props> = ({ readOnly = false, children }) => {
-  const router = useRouter()
-
-  const handleClick = (value: string) => {
-    if (readOnly) return
-    router.push(`/?category=${value}`)
-  }
+const TierBadge: React.FC<Props> = ({ readOnly = false, children }) => {
   return (
     <StyledWrapper
-      onClick={() => handleClick(children)}
       css={{
         backgroundColor: getColorClassByName(children),
         cursor: readOnly ? "default" : "pointer",
@@ -42,14 +35,13 @@ const Category: React.FC<Props> = ({ readOnly = false, children }) => {
   )
 }
 
-export default Category
+export default TierBadge
 
 const StyledWrapper = styled.div`
   padding-top: 0.25rem;
   padding-bottom: 0.25rem;
   padding-left: 0.5rem;
   padding-right: 0.5rem;
-  margin-right: 0.5rem;
   border-radius: 9999px;
   width: fit-content;
   font-size: 0.875rem;
