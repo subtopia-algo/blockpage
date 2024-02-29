@@ -52,6 +52,7 @@ import {
   getKmdConfigFromNextEnvironment,
   getAlgodConfigFromNextEnvironment,
 } from "src/libs/utils"
+import { SnackbarProvider } from "notistack"
 
 type Props = {
   children: ReactNode
@@ -102,13 +103,15 @@ const RootLayout = ({ children }: Props) => {
 
   return (
     <ThemeProvider scheme={scheme}>
-      <WalletProvider value={walletProviders}>
-        <Scripts />
-        {/* // TODO: replace react query */}
-        {/* {metaConfig.type !== "Paper" && <Header />} */}
-        <Header fullWidth={false} />
-        <StyledMain>{children}</StyledMain>
-      </WalletProvider>
+      <SnackbarProvider maxSnack={3}>
+        <WalletProvider value={walletProviders}>
+          <Scripts />
+          {/* // TODO: replace react query */}
+          {/* {metaConfig.type !== "Paper" && <Header />} */}
+          <Header fullWidth={false} />
+          <StyledMain>{children}</StyledMain>
+        </WalletProvider>
+      </SnackbarProvider>
     </ThemeProvider>
   )
 }

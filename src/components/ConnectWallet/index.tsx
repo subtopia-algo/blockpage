@@ -1,5 +1,14 @@
 import { Provider, useWallet } from "@txnlab/use-wallet"
 import Account from "./Account"
+import { useEffect, useState } from "react"
+import {
+  ChainType,
+  SUBTOPIA_REGISTRY_ID,
+  SubscriptionRecord,
+  SubtopiaClient,
+} from "subtopia-js-sdk"
+import { getAlgoClient } from "@algorandfoundation/algokit-utils"
+import { getAlgodConfigFromNextEnvironment } from "src/libs/utils"
 
 interface ConnectWalletInterface {
   openModal: boolean
@@ -7,10 +16,49 @@ interface ConnectWalletInterface {
 }
 
 const ConnectWallet = ({ openModal, closeModal }: ConnectWalletInterface) => {
-  const { providers, activeAddress } = useWallet()
+  const { providers, activeAddress, signer } = useWallet()
 
   const isKmd = (provider: Provider) =>
     provider.metadata.name.toLowerCase() === "kmd"
+
+  const algoConfig = getAlgodConfigFromNextEnvironment()
+  const algodClient = getAlgoClient(algoConfig)
+  const [subtopiaClient, setSubtopiaClient] = useState<
+    SubtopiaClient | undefined
+  >(undefined)
+  const [subscription, setSubscription] = useState<
+    SubscriptionRecord | undefined
+  >(undefined)
+
+  useEffect(() => {
+    const initSubtopiaClient = async () => {
+      try {
+        // Assume activeAccount and other necessary variables are defined
+        const activeAccount = { addr: activeAddress!, signer: signer }
+        const client = await SubtopiaClient.init({
+          algodClient: algodClient,
+          chainType: ChainType.TESTNET,
+          productID: 602942271,
+          registryID: SUBTOPIA_REGISTRY_ID(ChainType.TESTNET),
+          creator: activeAccount,
+        })
+        setSubtopiaClient(client)
+
+        setSubscription(
+          await client.getSubscription({
+            subscriberAddress: activeAddress!,
+            algodClient: algodClient,
+          })
+        )
+      } catch (e) {
+        console.error(e)
+      }
+    }
+
+    if (activeAddress && !subtopiaClient) {
+      initSubtopiaClient()
+    }
+  }, [activeAddress, algodClient, signer, subtopiaClient])
 
   return (
     <dialog
@@ -18,12 +66,14 @@ const ConnectWallet = ({ openModal, closeModal }: ConnectWalletInterface) => {
       className={`modal ${openModal ? "modal-open" : ""}`}
     >
       <form method="dialog" className="modal-box">
-        <h3 className="font-bold text-2xl">Select wallet provider</h3>
+        <h3 className="font-bold text-2xl">
+          {activeAddress ? "Account settings" : "Select wallet provider"}
+        </h3>
 
         <div className="grid m-2 pt-5">
           {activeAddress && (
             <>
-              <Account />
+              <Account subscription={subscription} />
               <div className="divider" />
             </>
           )}
@@ -59,7 +109,7 @@ const ConnectWallet = ({ openModal, closeModal }: ConnectWalletInterface) => {
 
         <div className="modal-action ">
           <button
-            data-test-id="close-wallet-modal"
+            data-test-id="close-wallet-modal btn-outline"
             className="btn"
             onClick={() => {
               closeModal()
@@ -67,9 +117,19 @@ const ConnectWallet = ({ openModal, closeModal }: ConnectWalletInterface) => {
           >
             Close
           </button>
+          {activeAddress && subscription && (
+            <button className="btn btn-info btn-outline">
+              <a
+                href={`https://testnet.subtopia.io/subscription/${subtopiaClient?.appID}`}
+                target="_blank"
+              >
+                Manage subscription
+              </a>
+            </button>
+          )}
           {activeAddress && (
             <button
-              className="btn btn-warning"
+              className="btn btn-warning btn-outline"
               data-test-id="logout"
               onClick={() => {
                 if (providers) {

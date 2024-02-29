@@ -1,14 +1,55 @@
-import { Provider, useWallet } from "@txnlab/use-wallet"
+import { getAlgoClient } from "@algorandfoundation/algokit-utils"
+import { useWallet } from "@txnlab/use-wallet"
+import { useEffect, useState } from "react"
+import { getAlgodConfigFromNextEnvironment } from "src/libs/utils"
+import {
+  SubtopiaClient,
+  ChainType,
+  SUBTOPIA_REGISTRY_ID,
+} from "subtopia-js-sdk"
+import { useSnackbar } from "notistack"
 
 interface SubscribeModalInterface {
   openModal: boolean
+  subtopiaClient: SubtopiaClient | undefined
   closeModal: () => void
+  onSubscribe: () => void
 }
 
-const SubscribeModal = ({ openModal, closeModal }: SubscribeModalInterface) => {
-  const { providers, activeAddress } = useWallet()
+const SubscribeModal = ({
+  openModal,
+  closeModal,
+  subtopiaClient,
+  onSubscribe,
+}: SubscribeModalInterface) => {
+  const { activeAddress, signer } = useWallet()
+  const [loading, setLoading] = useState(false)
+  const algoConfig = getAlgodConfigFromNextEnvironment()
+  const algodClient = getAlgoClient(algoConfig)
 
-  const handleSubscribe = () => {}
+  const { enqueueSnackbar } = useSnackbar()
+
+  const handleSubscribe = async () => {
+    setLoading(true)
+    if (!activeAddress || !subtopiaClient) return
+
+    const activeAccount = { addr: activeAddress, signer: signer }
+
+    try {
+      enqueueSnackbar("Subscribing now...", { variant: "info" })
+      const response = await subtopiaClient.createSubscription({
+        subscriber: activeAccount,
+      })
+      enqueueSnackbar(`🌟 Subscribed successfully: ${response.txID}`, {
+        variant: "success",
+      })
+      onSubscribe()
+    } catch (e) {
+      enqueueSnackbar("Failed to send transaction", { variant: "error" })
+    }
+
+    setLoading(false)
+  }
 
   return (
     <dialog
@@ -30,6 +71,7 @@ const SubscribeModal = ({ openModal, closeModal }: SubscribeModalInterface) => {
           <button
             data-test-id="close-wallet-modal"
             className="btn"
+            disabled={loading}
             onClick={() => {
               closeModal()
             }}
@@ -41,7 +83,9 @@ const SubscribeModal = ({ openModal, closeModal }: SubscribeModalInterface) => {
               className="btn btn-info"
               data-test-id="logout"
               onClick={handleSubscribe}
+              disabled={loading}
             >
+              {loading && <span className="loading loading-spinner"></span>}
               Subscribe
             </button>
           )}

@@ -1,4 +1,4 @@
-import React, { useState } from "react"
+import React, { useEffect, useState } from "react"
 import PostHeader from "./PostHeader"
 import Footer from "./PostFooter"
 import CommentBox from "./CommentBox"
@@ -9,20 +9,67 @@ import usePostQuery from "src/hooks/usePostQuery"
 import { useWallet } from "@txnlab/use-wallet"
 import ConnectWallet from "src/components/ConnectWallet"
 import SubscribeModal from "src/components/SubscribeModal"
+import { getAlgoClient } from "@algorandfoundation/algokit-utils"
+import { getAlgodConfigFromNextEnvironment } from "src/libs/utils"
+import {
+  SubtopiaClient,
+  ChainType,
+  SUBTOPIA_REGISTRY_ID,
+} from "subtopia-js-sdk"
 
 type Props = {}
 
 const PostDetail: React.FC<Props> = () => {
   const data = usePostQuery()
-  const { activeAddress } = useWallet()
+  const { activeAddress, signer } = useWallet()
   const [isDialogOpen, setDialogOpen] = useState(false)
+  const algoConfig = getAlgodConfigFromNextEnvironment()
+  const algodClient = getAlgoClient(algoConfig)
+  const [subtopiaClient, setSubtopiaClient] = useState<
+    SubtopiaClient | undefined
+  >(undefined)
+  const [isSubscriber, setIsSubscriber] = useState(false)
+
+  useEffect(() => {
+    const initSubtopiaClient = async () => {
+      try {
+        // Assume activeAccount and other necessary variables are defined
+        const activeAccount = { addr: activeAddress!, signer: signer }
+        const client = await SubtopiaClient.init({
+          algodClient: algodClient,
+          chainType: ChainType.TESTNET,
+          productID: 602942271,
+          registryID: SUBTOPIA_REGISTRY_ID(ChainType.TESTNET),
+          creator: activeAccount,
+        })
+        setSubtopiaClient(client)
+
+        setIsSubscriber(
+          await client.isSubscriber({ subscriberAddress: activeAddress! })
+        )
+      } catch (e) {
+        console.error(e)
+      }
+    }
+
+    if (activeAddress && !subtopiaClient) {
+      initSubtopiaClient()
+    }
+  }, [activeAddress, algodClient, subtopiaClient, signer])
 
   if (!data) return null
 
   const category = (data.category && data.category?.[0]) || undefined
 
-  const isSubscriber = (address: string | undefined) => {
-    return false
+  const reloadSubscriptionStatus = async (address: string | undefined) => {
+    if (!subtopiaClient || !address) {
+      setIsSubscriber(false)
+      return
+    }
+
+    setIsSubscriber(
+      await subtopiaClient.isSubscriber({ subscriberAddress: address })
+    )
   }
 
   const toggleWalletModal = () => {
@@ -30,7 +77,7 @@ const PostDetail: React.FC<Props> = () => {
   }
 
   // Check if the post is paid and the user is not a subscriber
-  const isPaidContent = data.tier === "Paid" && !isSubscriber(activeAddress)
+  const isPaidContent = data.tier === "Paid"
 
   return (
     <StyledWrapper>
@@ -43,23 +90,31 @@ const PostDetail: React.FC<Props> = () => {
           </div>
         )}
         {data.type[0] === "Post" && <PostHeader data={data} />}
-        {!isPaidContent ? (
-          <div>
-            <NotionRenderer recordMap={data.recordMap} />
-          </div>
+        {subtopiaClient ? (
+          isPaidContent && !isSubscriber ? (
+            <StyledSubscriptionNotice>
+              <p>
+                👋 Hello, this post is available to BlockPost subscribers. Click
+                subscribe to get started.
+              </p>
+              <button
+                className="btn glass btn-wide text-lg"
+                onClick={toggleWalletModal}
+              >
+                Subscribe
+              </button>
+            </StyledSubscriptionNotice>
+          ) : (
+            <div>
+              <NotionRenderer recordMap={data.recordMap} />
+            </div>
+          )
         ) : (
-          <StyledSubscriptionNotice>
-            <p>
-              👋 Hello, this post is available to BlockPost subscribers. Click
-              subscribe to get started.
-            </p>
-            <button
-              className="btn glass btn-wide text-lg"
-              onClick={toggleWalletModal}
-            >
-              Subscribe
+          <div className="flex justify-center">
+            <button className="btn glass text-lg btn-loading btn-wide">
+              Loading...
             </button>
-          </StyledSubscriptionNotice>
+          </div>
         )}
         {data.type[0] === "Post" && (
           <>
@@ -68,7 +123,14 @@ const PostDetail: React.FC<Props> = () => {
           </>
         )}
       </article>
-      <SubscribeModal openModal={isDialogOpen} closeModal={toggleWalletModal} />
+      <SubscribeModal
+        subtopiaClient={subtopiaClient}
+        openModal={isDialogOpen}
+        closeModal={toggleWalletModal}
+        onSubscribe={async () => {
+          await reloadSubscriptionStatus(activeAddress)
+        }}
+      />
     </StyledWrapper>
   )
 }
