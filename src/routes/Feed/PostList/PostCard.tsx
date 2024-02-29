@@ -21,7 +21,7 @@ const PostCard: React.FC<Props> = ({ data }) => {
         {category && (
           <div className="category">
             <Category>{category}</Category>
-            {data.tier && <TierBadge>{data.tier[0]}</TierBadge>}
+            {data.tier && <TierBadge>{data.tier}</TierBadge>}
           </div>
         )}
         {data.thumbnail && (

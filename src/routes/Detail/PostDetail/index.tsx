@@ -1,4 +1,4 @@
-import React from "react"
+import React, { useState } from "react"
 import PostHeader from "./PostHeader"
 import Footer from "./PostFooter"
 import CommentBox from "./CommentBox"
@@ -6,15 +6,31 @@ import Category from "src/components/Category"
 import styled from "@emotion/styled"
 import NotionRenderer from "../components/NotionRenderer"
 import usePostQuery from "src/hooks/usePostQuery"
+import { useWallet } from "@txnlab/use-wallet"
+import ConnectWallet from "src/components/ConnectWallet"
+import SubscribeModal from "src/components/SubscribeModal"
 
 type Props = {}
 
 const PostDetail: React.FC<Props> = () => {
   const data = usePostQuery()
+  const { activeAddress } = useWallet()
+  const [isDialogOpen, setDialogOpen] = useState(false)
 
   if (!data) return null
 
   const category = (data.category && data.category?.[0]) || undefined
+
+  const isSubscriber = (address: string | undefined) => {
+    return false
+  }
+
+  const toggleWalletModal = () => {
+    setDialogOpen((prev) => !prev)
+  }
+
+  // Check if the post is paid and the user is not a subscriber
+  const isPaidContent = data.tier === "Paid" && !isSubscriber(activeAddress)
 
   return (
     <StyledWrapper>
@@ -27,9 +43,24 @@ const PostDetail: React.FC<Props> = () => {
           </div>
         )}
         {data.type[0] === "Post" && <PostHeader data={data} />}
-        <div>
-          <NotionRenderer recordMap={data.recordMap} />
-        </div>
+        {!isPaidContent ? (
+          <div>
+            <NotionRenderer recordMap={data.recordMap} />
+          </div>
+        ) : (
+          <StyledSubscriptionNotice>
+            <p>
+              👋 Hello, this post is available to BlockPost subscribers. Click
+              subscribe to get started.
+            </p>
+            <button
+              className="btn glass btn-wide text-lg"
+              onClick={toggleWalletModal}
+            >
+              Subscribe
+            </button>
+          </StyledSubscriptionNotice>
+        )}
         {data.type[0] === "Post" && (
           <>
             <Footer />
@@ -37,6 +68,7 @@ const PostDetail: React.FC<Props> = () => {
           </>
         )}
       </article>
+      <SubscribeModal openModal={isDialogOpen} closeModal={toggleWalletModal} />
     </StyledWrapper>
   )
 }
@@ -58,5 +90,24 @@ const StyledWrapper = styled.div`
   > article {
     margin: 0 auto;
     max-width: 42rem;
+  }
+`
+
+const StyledSubscriptionNotice = styled.div`
+  text-align: center;
+  margin-top: 2rem;
+  p {
+    margin-bottom: 1rem;
+  }
+  button {
+    padding: 0.5rem 1rem;
+    background-color: #007bff;
+    color: white;
+    border: none;
+    border-radius: 0.25rem;
+    cursor: pointer;
+    &:hover {
+      background-color: #0056b3;
+    }
   }
 `
