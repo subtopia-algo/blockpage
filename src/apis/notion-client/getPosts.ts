@@ -43,6 +43,9 @@ export const getPosts = async () => {
       properties.fullWidth =
         (block[id].value?.format as any)?.page_full_width ?? false
 
+      // for field tier, transform array elements (which are all strings), apply split on the string by " " character and take second element (if it exists otherwise keep as is)
+      properties.tier = properties.tier?.[0]?.split(" ")?.[1] ?? "Free"
+
       data.push(properties)
     }
 

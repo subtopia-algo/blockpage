@@ -21,7 +21,7 @@ export type TPost = {
   date: { start_date: string }
   type: TPostType[]
   slug: string
-  tier: TTierType[]
+  tier: TTierType
   tags?: string[]
   category?: string[]
   summary?: string

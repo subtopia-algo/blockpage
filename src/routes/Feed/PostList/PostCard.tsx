@@ -6,6 +6,7 @@ import { TPost } from "../../../types"
 import Image from "next/image"
 import Category from "../../../components/Category"
 import styled from "@emotion/styled"
+import TierBadge from "src/components/TierBadge"
 
 type Props = {
   data: TPost
@@ -20,6 +21,7 @@ const PostCard: React.FC<Props> = ({ data }) => {
         {category && (
           <div className="category">
             <Category>{category}</Category>
+            {data.tier && <TierBadge>{data.tier}</TierBadge>}
           </div>
         )}
         {data.thumbnail && (
@@ -32,7 +34,11 @@ const PostCard: React.FC<Props> = ({ data }) => {
             />
           </div>
         )}
-        <div data-thumb={!!data.thumbnail} data-category={!!category} className="content">
+        <div
+          data-thumb={!!data.thumbnail}
+          data-category={!!category}
+          className="content"
+        >
           <header className="top">
             <h2>{data.title}</h2>
           </header>
@@ -82,9 +88,13 @@ const StyledWrapper = styled(Link)`
         0 4px 6px -2px rgba(0, 0, 0, 0.05);
     }
     > .category {
+      display: flex;
+      justify-content: flex-start; // This will push the TierBadge to the right
+      align-items: center; // This will vertically center the items
       position: absolute;
       top: 1rem;
       left: 1rem;
+      right: 1rem; // Add right property to allow space-between to work
       z-index: 10;
     }
 
